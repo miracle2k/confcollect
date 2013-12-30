@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 setup(
     name="confcollect",
     description="Helpers to collect configuration from os environment, files etc.",
-    author='Michael Elsdörfer',
+    author='Michael Elsdoerfer',
     author_email='michael@elsdoerfer.com',
     version="0.1",
     license='BSD',
