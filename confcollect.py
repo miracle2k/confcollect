@@ -59,7 +59,7 @@ def from_environ(*specs, **kwargs):
                 bool: convert.bool
             }.get(type(value), lambda v: v)
             result[key] = converter(os.environ[key.upper()])
-    return _postprocess(result)
+    return _postprocess(result, **kwargs)
 
 
 def from_object(obj, upper_only=True, **kwargs):
@@ -74,7 +74,7 @@ def from_object(obj, upper_only=True, **kwargs):
         if name.startswith('_'):
             continue
         result[name] = getattr(obj, name)
-    return _postprocess(result)
+    return _postprocess(result, **kwargs)
 
 
 def from_module(module_name, silent=True, **kwargs):
@@ -91,7 +91,7 @@ def from_module(module_name, silent=True, **kwargs):
         else:
             return False
     else:
-        return from_object(module)
+        return from_object(module, **kwargs)
 
 
 def _postprocess(d, **kwargs):
