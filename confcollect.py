@@ -56,7 +56,8 @@ def from_environ(*specs, **kwargs):
     for key, value in by_defaults.items():
         if key.upper() in os.environ:
             converter = {
-                bool: convert.bool
+                bool: convert.bool,
+                int: convert.int
             }.get(type(value), lambda v: v)
             result[key] = converter(os.environ[key.upper()])
     return _postprocess(result, **kwargs)
@@ -108,25 +109,33 @@ class convert(object):
 
     @staticmethod
     def bool(value):
-            """
-            Returns a boolean if you pass in a truthy or falsy value.
+        """
+        Returns a boolean if you pass in a truthy or falsy value.
 
-            Valid truth values are::
-                1, '1', 'true', 't', 'True' and 'TRUE'
+        Valid truth values are::
+            1, '1', 'true', 't', 'True' and 'TRUE'
 
-            Valid falsey valus are::
-                0, '0', 'false', 'f', 'False' and 'FALSE'
+        Valid falsey valus are::
+            0, '0', 'false', 'f', 'False' and 'FALSE'
 
-            If the value is not truthy or falsey this will raise a
-            value error.
-            """
-            if value in (True, False):
-                return bool(value)
-
-            if value in ('1', 'true', 't', 'True', 'TRUE'):
-                return True
-
-            if value in ('0', 'false', 'f', 'False', 'FALSE'):
-                return False
-
+        If the value is not truthy or falsey this will raise a
+        value error.
+        """
+        if value in (True, False):
             return bool(value)
+
+        if value in ('1', 'true', 't', 'True', 'TRUE'):
+            return True
+
+        if value in ('0', 'false', 'f', 'False', 'FALSE'):
+            return False
+
+        return bool(value)
+
+    @staticmethod
+    def int(value):
+        """Make sure the value is an integer, or None."""
+        try:
+            return int(value)
+        except ValueError:
+            return None
