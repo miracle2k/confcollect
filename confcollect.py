@@ -57,7 +57,8 @@ def from_environ(*specs, **kwargs):
         if key.upper() in os.environ:
             converter = {
                 bool: convert.bool,
-                int: convert.int
+                int: convert.int,
+                dict: convert.dict,
             }.get(type(value), lambda v: v)
             result[key] = converter(os.environ[key.upper()])
     return _postprocess(result, **kwargs)
@@ -139,3 +140,21 @@ class convert(object):
             return int(value)
         except ValueError:
             return None
+
+    @staticmethod
+    def dict(value):
+        """Support dicts, format is::
+
+            var1=foo,var2=bar
+        """
+        if not value:
+            # '' is an empty dict, but ' ' will be {' ': ''}?
+            return {}
+
+        def split(a):
+            parts = a.split('=', 1)
+            if len(parts) == 1:
+                return parts[0], ''
+            else:
+                return parts
+        return dict(map(split, value.split(',')))
