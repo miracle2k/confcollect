@@ -59,6 +59,8 @@ def from_environ(*specs, **kwargs):
                 bool: convert.bool,
                 int: convert.int,
                 dict: convert.dict,
+                list: convert.list,
+                tuple: convert.tuple,
             }.get(type(value), lambda v: v)
             result[key] = converter(os.environ[key.upper()])
     return _postprocess(result, **kwargs)
@@ -140,6 +142,18 @@ class convert(object):
             return int(value)
         except ValueError:
             return None
+
+    @staticmethod
+    def list(value):
+        """Support comma-separated lists.
+        """
+        return value.split(',')
+
+    @staticmethod
+    def tuple(value):
+        """Same rules as lists.
+        """
+        return tuple(convert.list(value))
 
     @staticmethod
     def dict(value):
