@@ -147,6 +147,8 @@ class convert(object):
     def list(value):
         """Support comma-separated lists.
         """
+        if not value:
+            return []
         return value.split(',')
 
     @staticmethod
