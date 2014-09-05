@@ -82,8 +82,8 @@ def from_object(obj, upper_only=True, **kwargs):
 
 
 def from_module(module_name, silent=True, **kwargs):
-    """Import the given module, return ``False`` if that fails, or
-    raise the ImportError if ``sient`` is not set.
+    """Import the given module, return enpty dict if that fails, or
+    raise the ImportError if ``silent`` is not set.
 
     Passes all other arguments to ``from_object``.
     """
@@ -93,7 +93,7 @@ def from_module(module_name, silent=True, **kwargs):
         if not silent:
             raise
         else:
-            return False
+            return {}
     else:
         return from_object(module, **kwargs)
 
