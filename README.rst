@@ -29,5 +29,5 @@ You would do something like this in your ``settings.py`` file::
     import confcollect, sys
     _my = sys.modules[__name__]
 
-    _my.__dict__.update(confcollect.from_module('config', silent=False))
+    _my.__dict__.update(confcollect.from_module('myproject.config', silent=False))
     _my.__dict__.update(confcollect.from_environ(by_defaults=_my.__dict__))
