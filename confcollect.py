@@ -72,8 +72,11 @@ class spec(object):
         else:
             return {key: value}
 
+    def __repr__(self):
+        return repr(self.__dict__)
 
-def specs_from_dict(template_dict):
+
+def specs_from_dict(template_dict, nested_dicts=False, prefix=""):
     """Given a dictinary, create specs, and return them as a dict.
 
     The generated specs will read the upper-case values, and write
@@ -83,9 +86,26 @@ def specs_from_dict(template_dict):
     By returning a dictionary, it means you can easily take what you
     need and customize other specs. To use the specs, pass them to
     :func:`from_environ` using ``specs_dict.values()``.
+
+    ``nested_dicts``
+        If any of the values is a dict that contains further
+        dicts, multiple specs are generated for this key. For example,
+        given the template ``{db: {host: 'localhost', port: 80}}``,
+        two specs are generated: DB_HOST, and DB_PORT.
     """
     specs = {}
     for key, value in template_dict.items():
+        if nested_dicts and isinstance(value, dict):
+            # Recursively call ourselfs. We need to prefix all the
+            # returned specs with the parent key.
+            nested_specs = specs_from_dict(value, prefix="%s_" % key.upper())
+            for s in nested_specs.values():
+                s._write_dict = "%s.%s" % (key, s._write)
+            specs.update(dict([
+                ("%s.%s"%(key,k), v)
+                for k, v in nested_specs.items()]))
+            continue
+
         converter = {
             bool: convert.bool,
             int: convert.int,
@@ -93,8 +113,24 @@ def specs_from_dict(template_dict):
             list: convert.list,
             tuple: convert.tuple,
         }.get(type(value), lambda v: v)
-        specs[key] = spec(key.upper(), convert=converter, write=key)
+        specs[key] = spec(
+            "%s%s" % (prefix, key.upper()),
+            convert=converter, write=key)
     return specs
+
+
+def merge_dict(d1, d2):
+    """Modifies d1 in-place to contain values from d2.  If any value
+    in d1 is a dictionary (or dict-like), *and* the corresponding
+    value in d2 is also a dictionary, then merge them in-place.
+    """
+    for k,v2 in d2.items():
+        v1 = d1.get(k) # returns None if v1 has no value for this key
+        if (isinstance(v1, dict) and
+             isinstance(v2, dict)):
+            merge_dict(v1, v2)
+        else:
+            d1[k] = v2
 
 
 def from_environ(*specs, **kwargs):
@@ -118,8 +154,10 @@ def from_environ(*specs, **kwargs):
     TODO: Add support for prefix-based loading.
     """
     by_defaults = kwargs.pop('by_defaults', None)
+    nested_dicts = kwargs.pop('nested_dicts', None)
     if by_defaults:
-        specs = specs_from_dict(by_defaults).values()
+        specs = specs_from_dict(
+            by_defaults, nested_dicts=nested_dicts).values()
 
     result = {}
     for spec in specs:
@@ -129,7 +167,7 @@ def from_environ(*specs, **kwargs):
             continue
         if spec.convert:
             value = spec.convert(value)
-        result.update(spec.write(value))
+        merge_dict(result, spec.write(value))
     return _postprocess(result, **kwargs)
 
 

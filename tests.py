@@ -1,6 +1,6 @@
 import os
 import pytest
-from confcollect import from_object, from_environ, spec
+from confcollect import from_object, from_environ, spec, specs_from_dict
 
 
 class TestFromObject:
@@ -37,8 +37,22 @@ class TestFromEnviron:
         environ['FOO'] = ""
         assert from_environ(by_defaults={'foo': []}) == {'foo': []}
 
+    def test_nested_dicts(self, environ):
+        environ['DB_HOST'] = 'localhost'
+        environ['DB_PORT'] = '333'
+        assert from_environ(by_defaults={'db': {'host': '', 'port': 80}},
+            nested_dicts=True) == {'db': {'host': 'localhost', 'port': 333}}
+
 
 class TestSpecs:
+
+    def test_generate_nested_dict(self):
+        assert set(specs_from_dict({
+            'db': {
+                'host': 'test',
+                'port': 111
+            }
+        }, nested_dicts=True).keys()) == set(['db.host', 'db.port'])
 
     def test_write_dict(self):
         assert spec('foo', write_dict='a.b.c').write('42') == {'a': {'b': {'c': '42'}}}
