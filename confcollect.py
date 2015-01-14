@@ -19,13 +19,43 @@ Interesting, but potentially overengineered solution, no os.environ loading:
 
 import os
 import copy as copy_module
+from collections import namedtuple
 
-
-__all__ = ('copy', 'from_environ', 'from_object', 'from_module')
+__all__ = ('copy', 'from_environ', 'from_object', 'from_module', 'spec')
 
 
 # Expose the shallow copy function
 copy = copy_module.copy
+
+
+# Think of a spec conceptionally as a fetcher. It reads from a source
+# (environment, primarily) and returns something to be added to the
+# configuration. It is conceivable that these might be multiple values.
+spec = namedtuple('spec', ['read', 'convert', 'write'], verbose=False)
+
+
+def specs_from_dict(template_dict):
+    """Given a dictinary, create specs, and return them as a dict.
+
+    The generated specs will read the upper-case values, and write
+    the original dict values, automatically choosing a converter
+    based on the type.
+
+    By returning a dictionary, it means you can easily take what you
+    need and customize other specs. To use the specs, pass them to
+    :func:`from_environ` using ``specs_dict.values()``.
+    """
+    specs = {}
+    for key, value in template_dict.items():
+        converter = {
+            bool: convert.bool,
+            int: convert.int,
+            dict: convert.dict,
+            list: convert.list,
+            tuple: convert.tuple,
+        }.get(type(value), lambda v: v)
+        specs[key] = spec(key.upper(), convert=converter, write=key)
+    return specs
 
 
 def from_environ(*specs, **kwargs):
@@ -34,7 +64,7 @@ def from_environ(*specs, **kwargs):
     ``specs`` is supposed to work like this:
 
         from_environ(
-            spec('PORT', convert=int)
+            'port': spec('PORT', convert=int)
         )
 
     You may also do:
@@ -48,25 +78,22 @@ def from_environ(*specs, **kwargs):
 
     TODO: Add support for prefix-based loading.
     """
-    if specs:
-        raise ValueError('*specs not yet implemented')
     by_defaults = kwargs.pop('by_defaults', None)
+    if by_defaults:
+        specs = specs_from_dict(by_defaults).values()
 
     result = {}
-    for key, value in by_defaults.items():
-        if key.upper() in os.environ:
-            converter = {
-                bool: convert.bool,
-                int: convert.int,
-                dict: convert.dict,
-                list: convert.list,
-                tuple: convert.tuple,
-            }.get(type(value), lambda v: v)
-            result[key] = converter(os.environ[key.upper()])
+    for spec in specs:
+        if not spec.read in os.environ:
+            continue
+        value = os.environ[spec.read]
+        if spec.convert:
+            value = spec.convert(value)
+        result[spec.write or spec.read] = value
     return _postprocess(result, **kwargs)
 
 
-def from_object(obj, upper_only=True, **kwargs):
+def from_object(obj, upper_only=True, **common_opts):
     """Return all the properties of the object, by default filtering out
     those which are not uppercase, or which do not start with an
     alphanum char.
@@ -78,10 +105,10 @@ def from_object(obj, upper_only=True, **kwargs):
         if name.startswith('_'):
             continue
         result[name] = getattr(obj, name)
-    return _postprocess(result, **kwargs)
+    return _postprocess(result, **common_opts)
 
 
-def from_module(module_name, silent=True, **kwargs):
+def from_module(module_name, silent=True, **common_opts):
     """Import the given module, return enpty dict if that fails, or
     raise the ImportError if ``silent`` is not set.
 
@@ -95,17 +122,22 @@ def from_module(module_name, silent=True, **kwargs):
         else:
             return {}
     else:
-        return from_object(module, **kwargs)
+        return from_object(module, **common_opts)
 
 
-def _postprocess(d, **kwargs):
-    def ppk(k):
-        if kwargs.get('key_lower', False):
+def _postprocess(d, **common_opts):
+    """Applies common options.
+
+    key_lower
+        Makes all keys in the collected configuration dict lower-case.
+    """
+    def process_key(k):
+        if common_opts.get('key_lower', False):
             return k.lower()
         return k
-    def ppv(v):
+    def process_value(v):
         return v
-    return {ppk(k): ppv(v) for k, v in d.items()}
+    return {process_key(k): process_value(v) for k, v in d.items()}
 
 
 class convert(object):
