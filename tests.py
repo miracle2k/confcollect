@@ -1,6 +1,6 @@
 import os
 import pytest
-from confcollect import from_object, from_environ
+from confcollect import from_object, from_environ, spec
 
 
 class TestFromObject:
@@ -27,6 +27,7 @@ def environ(request):
     return fake_env
 
 
+
 class TestFromEnviron:
 
     def test_empty_list(self, environ):
@@ -35,3 +36,9 @@ class TestFromEnviron:
         """
         environ['FOO'] = ""
         assert from_environ(by_defaults={'foo': []}) == {'foo': []}
+
+
+class TestSpecs:
+
+    def test_write_dict(self):
+        assert spec('foo', write_dict='a.b.c').write('42') == {'a': {'b': {'c': '42'}}}

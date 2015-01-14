@@ -19,7 +19,6 @@ Interesting, but potentially overengineered solution, no os.environ loading:
 
 import os
 import copy as copy_module
-from collections import namedtuple
 
 __all__ = ('copy', 'from_environ', 'from_object', 'from_module', 'spec')
 
@@ -27,11 +26,51 @@ __all__ = ('copy', 'from_environ', 'from_object', 'from_module', 'spec')
 # Expose the shallow copy function
 copy = copy_module.copy
 
+class spec(object):
+    """
+    Think of a spec conceptionally as a copy & transform operation.
+    It reads from a source (environment, primarily) and and then writes
+    to the output configuration object.
 
-# Think of a spec conceptionally as a fetcher. It reads from a source
-# (environment, primarily) and returns something to be added to the
-# configuration. It is conceivable that these might be multiple values.
-spec = namedtuple('spec', ['read', 'convert', 'write'], verbose=False)
+    read
+        Name to read from.
+    write (default: read)
+        Name to write to.
+        If a tuple is given, it generates a nested dict.
+    write_dict:
+        write(value.split('.'))
+    convert:
+        Helpful transform function called between read and write.
+    """
+    def __init__(self, read, write=None, convert=None, write_dict=None):
+        self._read = read
+        self._write = write
+        self._write_dict = write_dict
+        self.convert = convert
+
+    def read(self, source):
+        if not self._read in source:
+            raise IndexError(self._read)
+        return source[self._read]
+
+    def write(self, value):
+        if self._write_dict:
+            key = self._write_dict
+            if isinstance(key, basestring):
+                key = key.split('.')
+        elif self._write:
+            key = self._write
+        else:
+            key = self._read
+
+        if isinstance(key, (tuple, list)):
+            # Generate the nested dict.
+            result = {key[-1]: value}
+            for item in key[-2::-1]:
+                result = {item: result}
+            return result
+        else:
+            return {key: value}
 
 
 def specs_from_dict(template_dict):
@@ -84,12 +123,13 @@ def from_environ(*specs, **kwargs):
 
     result = {}
     for spec in specs:
-        if not spec.read in os.environ:
+        try:
+            value = spec.read(os.environ)
+        except IndexError:
             continue
-        value = os.environ[spec.read]
         if spec.convert:
             value = spec.convert(value)
-        result[spec.write or spec.read] = value
+        result.update(spec.write(value))
     return _postprocess(result, **kwargs)
 
 
