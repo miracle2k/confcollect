@@ -7,6 +7,7 @@ setup(
     description="Helpers to collect configuration from os environment, files etc.",
     author='Michael Elsdoerfer',
     author_email='michael@elsdoerfer.com',
+    url='https://github.com/miracle2k/confcollect',
     version="0.2.1",
     license='BSD',
     py_modules=['confcollect'],
