@@ -105,12 +105,16 @@ def specs_from_dict(template_dict, nested_dicts=False, prefix=""):
     """
     specs = {}
     for key, value in template_dict.items():
+        if key.startswith('_'):
+            # Igore those by default. The dict might be locals()!
+            continue
         if nested_dicts and isinstance(value, dict):
             # Recursively call ourselfs. We need to prefix all the
             # returned specs with the parent key.
-            nested_specs = specs_from_dict(value, prefix="%s_" % key.upper())
+            nested_specs = specs_from_dict(value, prefix="%s%s_" % (prefix, key.upper()), nested_dicts=True)
             for s in nested_specs.values():
-                s._write_dict = "%s.%s" % (key, s._write)
+                s._write_dict = "%s.%s" % (key, s._write or s._write_dict)
+                s._write = None
             specs.update(dict([
                 ("%s.%s"%(key,k), v)
                 for k, v in nested_specs.items()]))
