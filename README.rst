@@ -73,7 +73,7 @@ using a custom spec::
 
 Putting multiple such values into a single environment variable can still be
 not pretty. Tooption to change the behaviour of ``by_defaults`` to generate
-multiple specs for a dict:
+multiple specs for a dict::
 
     set HAYSTACK_CONNECTIONS_DEFAULT_ENGINE="elastic"
     set HAYSTACK_CONNECTIONS_DEFAULT_URL"elastic"
