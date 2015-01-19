@@ -19,8 +19,18 @@ Interesting, but potentially overengineered solution, no os.environ loading:
 
 import os
 import copy as copy_module
+import urlparse
+
 
 __all__ = ('copy', 'from_environ', 'from_object', 'from_module', 'spec')
+
+
+
+class Skip(Exception):
+    """If this is raised by a converter, it is as if the setting does
+    not exist in the first place.
+    """
+    pass
 
 
 # Expose the shallow copy function
@@ -166,7 +176,10 @@ def from_environ(*specs, **kwargs):
         except IndexError:
             continue
         if spec.convert:
-            value = spec.convert(value)
+            try:
+                value = spec.convert(value)
+            except Skip:
+                continue
         merge_dict(result, spec.write(value))
     return _postprocess(result, **kwargs)
 
@@ -284,3 +297,28 @@ class convert(object):
             else:
                 return parts
         return dict(map(split, value.split(',')))
+
+
+def parse_url(which):
+    def converter(value):
+        parsed = urlparse.urlparse(value)._asdict()
+        if not parsed['netloc'] and parsed['path']:
+            # urlparse assume path by default rather than url
+            parsed.update({
+                'netloc': parsed['path'],
+                'path': ''
+            })
+        # urlparse does not separate the port
+        if ':' in parsed['netloc']:
+            host, port = parsed['netloc'].rsplit(':', 1)
+            parsed.update({'host': host, 'port': port})
+        else:
+            parsed['port'] = None
+            parsed['host'] = parsed['netloc']
+
+        value = parsed[which]
+        if value == None:
+            # None values are like "not existant"
+            raise Skip()
+        return value
+    return converter

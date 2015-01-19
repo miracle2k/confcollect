@@ -93,9 +93,45 @@ multiple specs for a dict:
 
 **(not yet supported)** We can read multiple values via regex::
 
-    spec(read_prefix='SEARCH_(.*)_(.*)', write_dict='HAYSTACK_CONNECTIONS.$1.$2')
+    spec(read_prefix='SEARCH_(.*)_(.*)', write_dict='HAYSTACK_CONNECTIONS.{0}.{1}')
     # If there are dots in the names
-    spec(read_prefix='SEARCH_(.*)_(.*)', write_dict=('HAYSTACK_CONNECTIONS', '$1', '$2'))
+    spec(read_prefix='SEARCH_(.*)_(.*)', write_dict=('HAYSTACK_CONNECTIONS', '{0}', '{1}'))
 
 
 **(Support reading nested dicts)** set DB="default=(ENGINE=mysql,HOST=localhost)"
+
+
+Derivative settings
+===================
+
+Imagine that your app has to settings, ``REDIS_HOST`` and ``REDIS_PORT``. But
+your deployment setup provides a single ``REDIS_URL`` environment variable.
+
+We can wire this up::
+
+    set REDIS_URL="redis://localhost:4566/0"
+    >>> spec('REDIS_URL', 'REDIS_HOST', convert=parse_url('netloc'))
+    >>> spec('REDIS_URL', 'REDIS_PORT', parse_url('port'), )
+
+Here we parse a different piece of information out of the url using the
+``parse_url``helper.
+
+
+**(not yet supported)**  Pulling all elements of the URL into variables:
+
+    >>> spec('REDIS_URL', 'REDIS_{}', convert=parse_url)
+    >>> spec('REDIS_URL', 'REDIS_INFO', convert=parse_url)  # REDIS_INFO would be dict
+
+
+The other way around - taking multiple settings and making a url is also
+sometimes necessary.
+
+
+**(not yet supported)** This can be done using a regular format string::
+
+    confcollect.spec('BROKER_[HOST|DB_NAME]', format="redis://{HOST}/{DB_NAME}", write="BROKER_URL")
+
+**(not yet supported)** Or, the build_url() helper will take a dict and
+smartly recognize identifiers for host, port etc.::
+
+    spec('BROKER_(.*)', convert=build_url, write='BROKER_URL')
