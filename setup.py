@@ -8,7 +8,7 @@ setup(
     author='Michael Elsdoerfer',
     author_email='michael@elsdoerfer.com',
     url='https://github.com/miracle2k/confcollect',
-    version="0.2.1",
+    version="0.2.2",
     license='BSD',
     py_modules=['confcollect'],
     zip_safe=True,
