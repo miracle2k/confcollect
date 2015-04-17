@@ -210,7 +210,9 @@ def from_module(module_name, silent=True, **common_opts):
     Passes all other arguments to ``from_object``.
     """
     try:
-        module = __import__(module_name)
+        # http://stackoverflow.com/a/6957437/15677
+        import importlib
+        module = importlib.import_module(module_name)
     except ImportError:
         if not silent:
             raise
