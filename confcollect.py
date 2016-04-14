@@ -19,7 +19,10 @@ Interesting, but potentially overengineered solution, no os.environ loading:
 
 import os
 import copy as copy_module
-import urlparse
+try:
+    from urllib import parse as urlparse
+except ImportError:
+    import urlparse
 
 
 __all__ = ('copy', 'from_environ', 'from_object', 'from_module', 'spec')
