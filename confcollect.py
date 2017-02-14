@@ -39,39 +39,64 @@ class Skip(Exception):
 # Expose the shallow copy function
 copy = copy_module.copy
 
-class spec(object):
-    """
-    Think of a spec conceptionally as a copy & transform operation.
-    It reads from a source (environment, primarily) and and then writes
-    to the output configuration object.
 
-    read
-        Name to read from.
-    write (default: read)
-        Name to write to.
-        If a tuple is given, it generates a nested dict.
-    write_dict:
-        write(value.split('.'))
-    convert:
-        Helpful transform function called between read and write.
+def get_convert_func_for_type(type):
+    return {
+        bool: convert.bool,
+        int: convert.int,
+        dict: convert.dict,
+        list: convert.list,
+        tuple: convert.tuple,
+    }.get(type)
+
+
+class spec(object):
+    """Think of a spec conceptionally as a copy & transform operation.
+    It reads from a source (usually the OS environment) and and then
+    writes to the output configuration object.
+
+    `spec('DEBUG', 'sys:debug')`
+        Reads DEBUG from the source, writes it to a key `sys:debug`.
+
+    `spec('DEBUG', ('runtime', 'debug'))`
+        Reads DEBUG from the source, adds a key to the result dict
+        like this: `{'runtime': {'debug': value}}`
+
+    Args:
+        read (str): Name to read from.
+        write (str, tuple): Output key to write to. If not given, the
+            same string as `read` is used. If a tuple is given, a
+            nested dict is generated in the output.
+        split_by (str): The value read is
+        convert (callable): Function to convert the value read; takes
+            a single argument, the value.
+        type (type): Give a expected output type. The string-value
+            read will be converted to this type. This is an alternative
+            to providing a custom `convert` function.
+
+    Returns:
+        dict: All the keys found and converted.
     """
-    def __init__(self, read, write=None, convert=None, write_dict=None):
+    def __init__(self, read, write=None, convert=None, type=None):
         self._read = read
         self._write = write
-        self._write_dict = write_dict
-        self.convert = convert
+        if convert:
+            self.convert = convert
+        elif type:
+            self.convert = get_convert_func_for_type(type)
+        else:
+            self.convert = None
 
     def read(self, source):
         if not self._read in source:
             raise IndexError(self._read)
-        return source[self._read]
+        value = source[self._read]
+        if self.convert:
+            value = self.convert(value)
+        return value
 
     def write(self, value):
-        if self._write_dict:
-            key = self._write_dict
-            if isinstance(key, basestring):
-                key = key.split('.')
-        elif self._write:
+        if self._write:
             key = self._write
         else:
             key = self._read
@@ -100,39 +125,47 @@ def specs_from_dict(template_dict, nested_dicts=False, prefix=""):
     need and customize other specs. To use the specs, pass them to
     :func:`from_environ` using ``specs_dict.values()``.
 
-    ``nested_dicts``
-        If any of the values is a dict that contains further
-        dicts, multiple specs are generated for this key. For example,
-        given the template ``{db: {host: 'localhost', port: 80}}``,
-        two specs are generated: DB_HOST, and DB_PORT.
+    Args:
+        nested_dicts (bool): If any of the values is a dict that
+            contains further dicts, multiple specs are generated for
+            this key. For example, given the template
+            ``{db: {host: 'localhost', port: 80}}``, two specs are
+            generated: DB_HOST, and DB_PORT.
+
+    Returns:
+        dict: A dict of {key: spec()}. The key is the `read` value.
+            A dict, rather than a list, is provided so you can more
+            easily customize the auto-generated specs.
     """
     specs = {}
     for key, value in template_dict.items():
         if key.startswith('_'):
             # Igore those by default. The dict might be locals()!
             continue
+
         if nested_dicts and isinstance(value, dict):
-            # Recursively call ourselfs. We need to prefix all the
-            # returned specs with the parent key.
-            nested_specs = specs_from_dict(value, prefix="%s%s_" % (prefix, key.upper()), nested_dicts=True)
+            # Generate specs from this nested dict. For this nested
+            # call, modify the prefix by adding the parent key to it.
+            nested_specs = specs_from_dict(
+                value,
+                prefix="%s%s_" % (prefix, key.upper()),
+                nested_dicts=True
+            )
+            # Modify the nested specs to write inside the nested key;
+            # the _write target from the nested spec might either be
+            # a simple string, or a tuple, if there was any further
+            # recursive nesting.
             for s in nested_specs.values():
-                s._write_dict = "%s.%s" % (key, s._write or s._write_dict)
-                s._write = None
-            specs.update(dict([
-                ("%s.%s"%(key,k), v)
-                for k, v in nested_specs.items()]))
+                if isinstance(s._write, tuple):
+                    s._write = (key,) + s._write
+                else:
+                    s._write = (key, s._write)
+
+            specs.update(nested_specs)
             continue
 
-        converter = {
-            bool: convert.bool,
-            int: convert.int,
-            dict: convert.dict,
-            list: convert.list,
-            tuple: convert.tuple,
-        }.get(type(value), lambda v: v)
-        specs[key] = spec(
-            "%s%s" % (prefix, key.upper()),
-            convert=converter, write=key)
+        env_key = "%s%s" % (prefix, key.upper())
+        specs[env_key] = spec(env_key, write=key, type=type(value))
     return specs
 
 
@@ -182,11 +215,8 @@ def from_environ(*specs, **kwargs):
             value = spec.read(os.environ)
         except IndexError:
             continue
-        if spec.convert:
-            try:
-                value = spec.convert(value)
-            except Skip:
-                continue
+        except Skip:
+            continue
         merge_dict(result, spec.write(value))
     return _postprocess(result, **kwargs)
 

@@ -52,7 +52,7 @@ class TestSpecs:
                 'host': 'test',
                 'port': 111
             }
-        }, nested_dicts=True).keys()) == set(['db.host', 'db.port'])
+        }, nested_dicts=True).keys()) == set(['DB_HOST', 'DB_PORT'])
 
     def test_write_dict(self):
-        assert spec('foo', write_dict='a.b.c').write('42') == {'a': {'b': {'c': '42'}}}
+        assert spec('foo', write=('a', 'b', 'c')).write('42') == {'a': {'b': {'c': '42'}}}
