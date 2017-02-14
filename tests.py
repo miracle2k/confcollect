@@ -44,15 +44,24 @@ class TestFromEnviron:
             nested_dicts=True) == {'db': {'host': 'localhost', 'port': 333}}
 
 
-class TestSpecs:
+class TestSpecsFromDict:
 
-    def test_generate_nested_dict(self):
+    def test_nested_dict(self):
         assert set(specs_from_dict({
             'db': {
                 'host': 'test',
                 'port': 111
             }
         }, nested_dicts=True).keys()) == set(['DB_HOST', 'DB_PORT'])
+
+
+class TestSpecs:
+
+    def test_read_with_type(self):
+        assert spec('foo', type=int).read({'foo': '42'}) == 42
+
+    def test_read_with_custom_convert(self):
+        assert spec('foo', convert=lambda s: int(s) + 1).read({'foo': '42'}) == 43
 
     def test_write_dict(self):
         assert spec('foo', write=('a', 'b', 'c')).write('42') == {'a': {'b': {'c': '42'}}}
