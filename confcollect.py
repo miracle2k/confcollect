@@ -183,7 +183,7 @@ def merge_dict(d1, d2):
             d1[k] = v2
 
 
-def from_environ(*specs, **kwargs):
+def from_environ(*speclist, **kwargs):
     """Return configuration variables from the OS environment.
 
     ``specs`` is supposed to work like this:
@@ -205,12 +205,13 @@ def from_environ(*specs, **kwargs):
     """
     by_defaults = kwargs.pop('by_defaults', None)
     nested_dicts = kwargs.pop('nested_dicts', None)
+    specs = kwargs.pop('specs', [])
     if by_defaults:
         specs = specs_from_dict(
             by_defaults, nested_dicts=nested_dicts).values()
 
     result = {}
-    for spec in specs:
+    for spec in (speclist or specs or []):
         try:
             value = spec.read(os.environ)
         except IndexError:
