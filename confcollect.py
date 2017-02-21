@@ -268,7 +268,7 @@ def _postprocess(d, **common_opts):
         return k
     def process_value(v):
         return v
-    return {process_key(k): process_value(v) for k, v in d.items()}
+    return dict([(process_key(k), process_value(v)) for k, v in d.items()])
 
 
 class convert(object):
