@@ -17,8 +17,10 @@ Interesting, but potentially overengineered solution, no os.environ loading:
     https://github.com/duckworthd/configurati
 """
 
+from __future__ import absolute_import
 import os
 import copy as copy_module
+from six.moves import map
 try:
     from urllib import parse as urlparse
 except ImportError:
@@ -207,8 +209,8 @@ def from_environ(*speclist, **kwargs):
     nested_dicts = kwargs.pop('nested_dicts', None)
     specs = kwargs.pop('specs', [])
     if by_defaults:
-        specs = specs_from_dict(
-            by_defaults, nested_dicts=nested_dicts).values()
+        specs = list(specs_from_dict(
+            by_defaults, nested_dicts=nested_dicts).values())
 
     result = {}
     for spec in (speclist or specs or []):
@@ -336,7 +338,7 @@ class convert(object):
                 return parts[0], ''
             else:
                 return parts
-        return dict(map(split, value.split(',')))
+        return dict(list(map(split, value.split(','))))
 
 
 def parse_url(which):

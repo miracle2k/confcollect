@@ -11,6 +11,9 @@ setup(
     version="0.2.5",
     license='BSD',
     py_modules=['confcollect'],
+    install_requires=[
+       'six'
+    ],
     zip_safe=True,
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
